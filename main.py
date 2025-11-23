@@ -192,29 +192,61 @@ def Dec(sk, c):
         
     return decrypted_bits
 
-# --- ТЕСТИРОВАНИЕ ---
+# --- ТЕСТИРОВАНИЕ С ЧИТАЕМЫМ ВЫВОДОМ ---
 
-# Генерируем случайное сообщение (256 бит)
-original_msg = list(np.random.randint(0, 2, n))
+def format_vector_summary(arr, name):
+    """Форматирует краткую статистику по вектору/матрице."""
+    flat = arr.flatten()
+    return (f"{name}:\n"
+            f"  Форма: {arr.shape}\n"
+            f"  Диапазон: [{flat.min()}, {flat.max()}]\n"
+            f"  Среднее: {flat.mean():.2f}\n"
+            f"  Пример первых 5 элементов: {flat[:5]}\n")
 
-print("1. Генерация ключей...")
+def format_bits(bits, max_show=32):
+    """Форматирует биты для компактного отображения."""
+    bits_str = ''.join(map(str, bits[:max_show]))
+    if len(bits) > max_show:
+        bits_str += f"... (всего {len(bits)} бит)"
+    return bits_str
+
+# Генерируем читаемое сообщение (первые 16 бит = 1, остальные = 0)
+original_msg = [1]*16 + [0]*(n-16)
+print("="*70)
+print("KYBER.CPA - ДЕМОНСТРАЦИЯ РАБОТЫ")
+print("="*70)
+
+print("\n[ШАГ 1] ГЕНЕРАЦИЯ КЛЮЧЕЙ")
+print("-"*70)
 pk, sk = KeyGen()
-print(f"Ключи: pk -> {pk}; sk -> {sk}")
+t_comp, A = pk
+print(format_vector_summary(A, "Матрица A (публичная)"))
+print(format_vector_summary(sk, "Секретный ключ s"))
+print(format_vector_summary(t_comp, "Публичный ключ t (сжатый)"))
 
-print("2. Шифрование...")
+print("\n[ШАГ 2] ШИФРОВАНИЕ")
+print("-"*70)
+print(f"Исходное сообщение (биты): {format_bits(original_msg)}")
 ciphertext = Enc(pk, original_msg)
-print(f"Сообщение: {original_msg}")
-print(f"Шифртекст: {ciphertext}")
+u_enc, v_enc = ciphertext
+print(format_vector_summary(u_enc, "Шифртекст u (сжатый)"))
+print(format_vector_summary(v_enc, "Шифртекст v (сжатый)"))
 
-print("3. Дешифрование...")
+print("\n[ШАГ 3] ДЕШИФРОВАНИЕ")
+print("-"*70)
 decrypted_msg = Dec(sk, ciphertext)
-print(f"Дешифрованное сообщение: {decrypted_msg}")
+print(f"Расшифрованное сообщение:  {format_bits(decrypted_msg)}")
 
-# Проверка
+print("\n[РЕЗУЛЬТАТ]")
+print("="*70)
 if original_msg == decrypted_msg:
-    print("\nУСПЕХ! Сообщение дешифровано верно.")
+    print("✓ УСПЕХ! Сообщение расшифровано без ошибок.")
 else:
-    print("\nОШИБКА! Сообщение искажено.")
-    # Считаем количество ошибок (для отладки)
     errors = sum([1 for i in range(n) if original_msg[i] != decrypted_msg[i]])
-    print(f"Количество неверных бит: {errors} из {n}")
+    print(f"✗ ОШИБКА! Неверных бит: {errors}/{n} ({100*errors/n:.2f}%)")
+    
+print("\nРазмеры передаваемых данных:")
+print(f"  Публичный ключ: {k * n * dt // 8} байт (t) + seed для A")
+print(f"  Шифртекст: {k * n * du // 8 + n * dv // 8} байт")
+print(f"  Секретный ключ: {k * n * 12 // 8} байт (примерно)")
+print("="*70)
